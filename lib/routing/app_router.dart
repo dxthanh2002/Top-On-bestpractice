@@ -17,7 +17,7 @@ GoRouter createRouter() {
       GoRoute(
         path: Routes.home,
         builder: (context, state) {
-          final adRepository = context.read<AdRepository>();
+          final adRepository = context.read<AdRepositoryImpl>();
           return HomeScreen(
             viewModel: HomeViewModel(adRepository: adRepository),
           );

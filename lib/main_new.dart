@@ -19,15 +19,11 @@ class MyApp extends StatelessWidget {
         Provider<AdService>(
           create: (_) => AdService(),
         ),
-        // Repositories
+        // Repositories - use ChangeNotifierProvider for concrete type
         ChangeNotifierProvider<AdRepositoryImpl>(
           create: (context) => AdRepositoryImpl(
             adService: context.read<AdService>(),
           ),
-        ),
-        // Provide abstract type
-        ProxyProvider<AdRepositoryImpl, AdRepository>(
-          update: (_, impl, __) => impl,
         ),
       ],
       child: Builder(
