@@ -14,15 +14,20 @@ class TopOnAdsService implements IAdsService {
   static TopOnAdsService? _instance;
   static TopOnAdsService get instance => _instance ??= TopOnAdsService._();
 
-  TopOnAdsService._();
+  TopOnAdsService._()
+      : _rewardedService = RewardedService(_eventController),
+        _interstitialService = InterstitialService(_eventController),
+        _bannerService = BannerService(_eventController),
+        _nativeService = NativeService(_eventController),
+        _splashService = SplashService(_eventController);
 
-  final _eventController = StreamController<TopOnAdEvent>.broadcast();
+  static final _eventController = StreamController<TopOnAdEvent>.broadcast();
   
-  late final RewardedService _rewardedService;
-  late final InterstitialService _interstitialService;
-  late final BannerService _bannerService;
-  late final NativeService _nativeService;
-  late final SplashService _splashService;
+  final RewardedService _rewardedService;
+  final InterstitialService _interstitialService;
+  final BannerService _bannerService;
+  final NativeService _nativeService;
+  final SplashService _splashService;
 
   TopOnAdsConfig? _config;
   bool _initialized = false;
@@ -46,34 +51,28 @@ class TopOnAdsService implements IAdsService {
     _config = config;
     final platformConfig = config.current;
 
-    // Initialize sub-services
-    _rewardedService = RewardedService(_eventController);
-    _interstitialService = InterstitialService(_eventController);
-    _bannerService = BannerService(_eventController);
-    _nativeService = NativeService(_eventController);
-    _splashService = SplashService(_eventController);
-
+    // Initialize sub-services with config
     _rewardedService.initialize(config);
     _interstitialService.initialize(config);
     _bannerService.initialize(config, screenWidth: screenWidth);
     _nativeService.initialize(config, screenWidth: screenWidth, screenHeight: screenHeight);
     _splashService.initialize(config);
 
-    // SDK settings
+    // SDK settings - don't await, these calls may not complete
     if (enableDebug) {
-      await ATInitManger.setLogEnabled(logEnabled: true);
+      ATInitManger.setLogEnabled(logEnabled: true);
     }
 
     if (config.channel != null) {
-      await ATInitManger.setChannelStr(channelStr: config.channel!);
+      ATInitManger.setChannelStr(channelStr: config.channel!);
     }
 
     if (config.subChannel != null) {
-      await ATInitManger.setSubChannelStr(subchannelStr: config.subChannel!);
+      ATInitManger.setSubChannelStr(subchannelStr: config.subChannel!);
     }
 
     if (config.customData != null) {
-      await ATInitManger.setCustomDataMap(customDataMap: Map<String, Object>.from(config.customData!));
+      ATInitManger.setCustomDataMap(customDataMap: Map<String, Object>.from(config.customData!));
     }
 
     // Initialize SDK
@@ -91,17 +90,14 @@ class TopOnAdsService implements IAdsService {
     double screenWidth = 320,
     double screenHeight = 640,
     bool preloadAds = true,
+    Duration timeout = const Duration(seconds: 10),
   }) async {
+    if (_initialized) return;
+    
     _config = config;
     final platformConfig = config.current;
 
-    // Initialize sub-services first
-    _rewardedService = RewardedService(_eventController);
-    _interstitialService = InterstitialService(_eventController);
-    _bannerService = BannerService(_eventController);
-    _nativeService = NativeService(_eventController);
-    _splashService = SplashService(_eventController);
-
+    // Initialize sub-services with config
     _rewardedService.initialize(config);
     _interstitialService.initialize(config);
     _bannerService.initialize(config, screenWidth: screenWidth);
@@ -114,26 +110,40 @@ class TopOnAdsService implements IAdsService {
 
     // Setup GDPR listener
     final completer = Completer<void>();
+    
+    Future<void> initSdk() async {
+      if (_initialized) return;
+      await ATInitManger.initAnyThinkSDK(
+        appidStr: platformConfig.appId,
+        appidkeyStr: platformConfig.appKey,
+      );
+      _initialized = true;
+
+      if (preloadAds) {
+        preloadAllAds();
+      }
+
+      if (!completer.isCompleted) {
+        completer.complete();
+      }
+    }
+    
     _gdprSubscription = ATListenerManager.initEventHandler.listen((value) async {
       if (value.consentDismiss != null) {
-        await ATInitManger.initAnyThinkSDK(
-          appidStr: platformConfig.appId,
-          appidkeyStr: platformConfig.appKey,
-        );
-        _initialized = true;
-
-        if (preloadAds) {
-          preloadAllAds();
-        }
-
-        if (!completer.isCompleted) {
-          completer.complete();
-        }
+        await initSdk();
       }
     });
 
     // Show GDPR dialog
     await ATInitManger.showGDPRConsentDialog();
+    
+    // Add timeout fallback - GDPR dialog may not show in non-EU regions
+    // or may already have consent stored
+    Future.delayed(timeout, () async {
+      if (!completer.isCompleted) {
+        await initSdk();
+      }
+    });
     
     return completer.future;
   }

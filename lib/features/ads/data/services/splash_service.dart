@@ -39,9 +39,10 @@ class SplashService {
       return TopOnShowResult.failure('Ad not ready');
     }
 
-    await ATSplashManager.entrySplashScenario(placementID: _placementId, sceneID: scene);
+    // Don't await - these SDK calls may not complete their Futures
+    ATSplashManager.entrySplashScenario(placementID: _placementId, sceneID: scene);
 
-    await ATSplashManager.showSplashAdWithShowConfig(
+    ATSplashManager.showSplashAdWithShowConfig(
       placementID: _placementId,
       sceneID: scene,
       showCustomExt: _showCustomExt,
@@ -83,6 +84,8 @@ class SplashService {
         case SplashStatus.splashDidClose:
           log("SplashService: closed - ${value.placementID}");
           _emitEvent(TopOnAdEventType.closed, value.placementID, extra: _castExtra(value.extraMap));
+          // Auto reload after close
+          load();
           break;
         default:
           break;

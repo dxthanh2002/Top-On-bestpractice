@@ -50,12 +50,13 @@ class RewardedService {
       return TopOnShowResult.failure('Ad not ready');
     }
 
-    await ATRewardedManager.entryRewardedVideoScenario(placementID: placementId, sceneID: scene);
+    // Don't await - these SDK calls may not complete their Futures
+    ATRewardedManager.entryRewardedVideoScenario(placementID: placementId, sceneID: scene);
 
     if (auto) {
-      await ATRewardedManager.showAutoLoadRewardedVideoAD(placementID: placementId, sceneID: scene);
+      ATRewardedManager.showAutoLoadRewardedVideoAD(placementID: placementId, sceneID: scene);
     } else {
-      await ATRewardedManager.showRewardedVideoWithShowConfig(
+      ATRewardedManager.showRewardedVideoWithShowConfig(
         placementID: placementId,
         sceneID: scene,
         showCustomExt: _showCustomExt,
@@ -111,6 +112,9 @@ class RewardedService {
           case RewardedStatus.rewardedVideoDidClose:
           log("RewardedService: closed - ${value.placementID}");
           _emitEvent(TopOnAdEventType.closed, value.placementID, adUnit, extra: _castExtra(value.extraMap));
+          // Auto reload after close (like original code)
+          final isAuto = value.placementID == _autoPlacementId;
+          load(auto: isAuto);
           break;
           case RewardedStatus.rewardedVideoDidAgainRewardSuccess:
           _emitEvent(TopOnAdEventType.rewardEarned, value.placementID, adUnit, extra: _castExtra(value.extraMap));

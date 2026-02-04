@@ -44,12 +44,13 @@ class InterstitialService {
       return TopOnShowResult.failure('Ad not ready');
     }
 
-    await ATInterstitialManager.entryInterstitialScenario(placementID: placementId, sceneID: scene);
+    // Don't await - these SDK calls may not complete their Futures
+    ATInterstitialManager.entryInterstitialScenario(placementID: placementId, sceneID: scene);
 
     if (auto) {
-      await ATInterstitialManager.showAutoLoadInterstitialAD(placementID: placementId, sceneID: scene);
+      ATInterstitialManager.showAutoLoadInterstitialAD(placementID: placementId, sceneID: scene);
     } else {
-      await ATInterstitialManager.showInterstitialAdWithShowConfig(
+      ATInterstitialManager.showInterstitialAdWithShowConfig(
         placementID: placementId,
         sceneID: scene,
         showCustomExt: _showCustomExt,
@@ -107,6 +108,9 @@ class InterstitialService {
           case InterstitialStatus.interstitialAdDidClose:
           log("InterstitialService: closed - ${value.placementID}");
           _emitEvent(TopOnAdEventType.closed, value.placementID, adUnit, extra: _castExtra(value.extraMap));
+          // Auto reload after close (like original code)
+          final isAuto = value.placementID == _autoPlacementId;
+          load(auto: isAuto);
           break;
         default:
           break;

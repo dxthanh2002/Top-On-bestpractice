@@ -25,20 +25,25 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _initAds() async {
-    final screenWidth = TopSize().getWidth();
-    final screenHeight = TopSize().getHeight();
+    try {
+      final screenWidth = TopSize().getWidth();
+      final screenHeight = TopSize().getHeight();
 
-    await TopOnAdsService.instance.initializeWithGDPR(
-      config: appAdsConfig,
-      enableDebug: true,
-      screenWidth: screenWidth,
-      screenHeight: screenHeight,
-      preloadAds: true,
-    );
+      await TopOnAdsService.instance.initialize(
+        config: appAdsConfig,
+        enableDebug: true,
+        screenWidth: screenWidth,
+        screenHeight: screenHeight,
+      );
 
-    setState(() {
-      _initialized = true;
-    });
+      TopOnAdsService.instance.preloadAllAds();
+    } catch (e, stack) {
+      debugPrint('_initAds ERROR: $e\n$stack');
+    } finally {
+      setState(() {
+        _initialized = true;
+      });
+    }
   }
 
   @override
