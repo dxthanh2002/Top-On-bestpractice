@@ -7,6 +7,7 @@ import '../features/ads/ads.dart';
 /// Chỉ cần thay đổi các giá trị dưới đây để config cho app của bạn.
 /// Lấy các giá trị này từ TopOn/Taku dashboard.
 const appAdsConfig = TopOnAdsConfig(
+  presetPlacementConfigPath: 'localStrategy',
   ios: TopOnPlatformConfig(
     appId: 'a5b0e8491845b3',
     appKey: '7eae0567827cfe2b22874061763f30c9',

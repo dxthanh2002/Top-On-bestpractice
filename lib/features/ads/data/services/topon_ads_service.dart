@@ -81,6 +81,11 @@ class TopOnAdsService implements IAdsService {
       appidkeyStr: platformConfig.appKey,
     );
 
+    // Set preset placement config path (optional - for local strategy)
+    if (config.presetPlacementConfigPath != null) {
+      await ATInitManger.setPresetPlacementConfigPath(pathStr: config.presetPlacementConfigPath!);
+    }
+
     _initialized = true;
   }
 
@@ -113,10 +118,18 @@ class TopOnAdsService implements IAdsService {
     
     Future<void> initSdk() async {
       if (_initialized) return;
+      
+      // Initialize SDK
       await ATInitManger.initAnyThinkSDK(
         appidStr: platformConfig.appId,
         appidkeyStr: platformConfig.appKey,
       );
+      
+      // Set preset placement config path (optional - for local strategy)
+      if (config.presetPlacementConfigPath != null) {
+        await ATInitManger.setPresetPlacementConfigPath(pathStr: config.presetPlacementConfigPath!);
+      }
+      
       _initialized = true;
 
       if (preloadAds) {

@@ -47,11 +47,21 @@ class RewardedService {
 
     final isReady = await ATRewardedManager.rewardedVideoReady(placementID: placementId);
     if (isReady != true) {
+      // Check load status before trying to load again
+      final loadStatus = await checkLoadStatus(auto: auto);
+      if (loadStatus == 1) {
+        return TopOnShowResult.failure('Ad is loading...');
+      }
       return TopOnShowResult.failure('Ad not ready');
     }
 
-    // Don't await - these SDK calls may not complete their Futures
+    // Scene tracking (optional)
     ATRewardedManager.entryRewardedVideoScenario(placementID: placementId, sceneID: scene);
+    
+    // Get valid ads cache (optional - for logging/tracking)
+    ATRewardedManager.getRewardedVideoValidAds(placementID: placementId).then((value) {
+      log('RewardedService: getValidAds - $value');
+    });
 
     if (auto) {
       ATRewardedManager.showAutoLoadRewardedVideoAD(placementID: placementId, sceneID: scene);
@@ -64,6 +74,16 @@ class RewardedService {
     }
 
     return TopOnShowResult.success();
+  }
+  
+  Future<int> checkLoadStatus({bool auto = false}) async {
+    final placementId = auto ? _autoPlacementId : _placementId;
+    try {
+      final value = await ATRewardedManager.checkRewardedVideoLoadStatus(placementID: placementId);
+      return value['isLoading'] ?? 0;
+    } catch (e) {
+      return -1;
+    }
   }
 
   Future<bool> isReady({bool auto = false}) async {

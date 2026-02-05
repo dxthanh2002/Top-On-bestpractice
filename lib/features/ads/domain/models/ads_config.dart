@@ -29,6 +29,7 @@ class TopOnAdsConfig {
   final String? channel;
   final String? subChannel;
   final Map<String, dynamic>? customData;
+  final String? presetPlacementConfigPath;
 
   const TopOnAdsConfig({
     required this.ios,
@@ -36,6 +37,7 @@ class TopOnAdsConfig {
     this.channel,
     this.subChannel,
     this.customData,
+    this.presetPlacementConfigPath,
   });
 
   TopOnPlatformConfig get current => Platform.isIOS ? ios : android;

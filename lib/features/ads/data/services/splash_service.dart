@@ -36,11 +36,21 @@ class SplashService {
 
     final isReady = await ATSplashManager.splashReady(placementID: _placementId);
     if (isReady != true) {
+      // Check load status before trying to load again
+      final loadStatus = await checkLoadStatus();
+      if (loadStatus == 1) {
+        return TopOnShowResult.failure('Ad is loading...');
+      }
       return TopOnShowResult.failure('Ad not ready');
     }
 
-    // Don't await - these SDK calls may not complete their Futures
+    // Scene tracking (optional)
     ATSplashManager.entrySplashScenario(placementID: _placementId, sceneID: scene);
+    
+    // Get valid ads cache (optional - for logging/tracking)
+    ATSplashManager.getSplashValidAds(placementID: _placementId).then((value) {
+      log('SplashService: getValidAds - $value');
+    });
 
     ATSplashManager.showSplashAdWithShowConfig(
       placementID: _placementId,
@@ -49,6 +59,15 @@ class SplashService {
     );
 
     return TopOnShowResult.success();
+  }
+  
+  Future<int> checkLoadStatus() async {
+    try {
+      final value = await ATSplashManager.checkSplashLoadStatus(placementID: _placementId);
+      return value['isLoading'] ?? 0;
+    } catch (e) {
+      return -1;
+    }
   }
 
   Future<bool> isReady() async {

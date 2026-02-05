@@ -29,14 +29,15 @@ class _MyAppState extends State<MyApp> {
       final screenWidth = TopSize().getWidth();
       final screenHeight = TopSize().getHeight();
 
-      await TopOnAdsService.instance.initialize(
+      // Use GDPR flow - SDK will init after consent dialog is dismissed
+      // This follows the original flow: showGDPRConsentDialog -> consentDismiss -> initTopon -> preload
+      await TopOnAdsService.instance.initializeWithGDPR(
         config: appAdsConfig,
         enableDebug: true,
         screenWidth: screenWidth,
         screenHeight: screenHeight,
+        preloadAds: true,
       );
-
-      TopOnAdsService.instance.preloadAllAds();
     } catch (e, stack) {
       debugPrint('_initAds ERROR: $e\n$stack');
     } finally {

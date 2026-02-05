@@ -41,11 +41,21 @@ class InterstitialService {
 
     final isReady = await ATInterstitialManager.hasInterstitialAdReady(placementID: placementId);
     if (isReady != true) {
+      // Check load status before trying to load again
+      final loadStatus = await checkLoadStatus(auto: auto);
+      if (loadStatus == 1) {
+        return TopOnShowResult.failure('Ad is loading...');
+      }
       return TopOnShowResult.failure('Ad not ready');
     }
 
-    // Don't await - these SDK calls may not complete their Futures
+    // Scene tracking (optional)
     ATInterstitialManager.entryInterstitialScenario(placementID: placementId, sceneID: scene);
+    
+    // Get valid ads cache (optional - for logging/tracking)
+    ATInterstitialManager.getInterstitialValidAds(placementID: placementId).then((value) {
+      log('InterstitialService: getValidAds - $value');
+    });
 
     if (auto) {
       ATInterstitialManager.showAutoLoadInterstitialAD(placementID: placementId, sceneID: scene);
@@ -58,6 +68,16 @@ class InterstitialService {
     }
 
     return TopOnShowResult.success();
+  }
+  
+  Future<int> checkLoadStatus({bool auto = false}) async {
+    final placementId = auto ? _autoPlacementId : _placementId;
+    try {
+      final value = await ATInterstitialManager.checkInterstitialLoadStatus(placementID: placementId);
+      return value['isLoading'] ?? 0;
+    } catch (e) {
+      return -1;
+    }
   }
 
   Future<bool> isReady({bool auto = false}) async {
