@@ -95,7 +95,7 @@ class TopOnAdsService implements IAdsService {
     double screenWidth = 320,
     double screenHeight = 640,
     bool preloadAds = true,
-    Duration timeout = const Duration(seconds: 10),
+    Duration timeout = const Duration(seconds: 3),
   }) async {
     if (_initialized) return;
     
@@ -142,19 +142,27 @@ class TopOnAdsService implements IAdsService {
     }
     
     _gdprSubscription = ATListenerManager.initEventHandler.listen((value) async {
+      debugPrint('GDPR Event: consentDismiss=${value.consentDismiss}, consentSet=${value.consentSet}');
       if (value.consentDismiss != null) {
         await initSdk();
       }
     });
 
-    // Show GDPR dialog
-    await ATInitManger.showGDPRConsentDialog();
-    
-    // Add timeout fallback - GDPR dialog may not show in non-EU regions
-    // or may already have consent stored
+    // Schedule timeout BEFORE showing dialog (in case dialog blocks)
     Future.delayed(timeout, () async {
       if (!completer.isCompleted) {
+        debugPrint('GDPR timeout - initializing SDK directly');
         await initSdk();
+      }
+    });
+
+    // Show GDPR dialog - don't await as it may not return on some platforms
+    ATInitManger.showGDPRConsentDialog().then((_) {
+      debugPrint('GDPR dialog returned');
+    }).catchError((e) {
+      debugPrint('GDPR dialog error: $e');
+      if (!completer.isCompleted) {
+        initSdk();
       }
     });
     
@@ -169,9 +177,80 @@ class TopOnAdsService implements IAdsService {
     loadSplash();
   }
 
+  // ============ NEW METHODS FOR ORIGINAL FLOW ============
+
+  /// Configure SDK settings without initializing (like original _setSDK)
+  void configureSDK({
+    required TopOnAdsConfig config,
+    bool enableDebug = false,
+    double screenWidth = 320,
+    double screenHeight = 640,
+  }) {
+    _config = config;
+
+    // Initialize sub-services with config
+    _rewardedService.initialize(config);
+    _interstitialService.initialize(config);
+    _bannerService.initialize(config, screenWidth: screenWidth);
+    _nativeService.initialize(config, screenWidth: screenWidth, screenHeight: screenHeight);
+    _splashService.initialize(config);
+
+    // SDK settings - don't await, these calls may not complete
+    if (enableDebug) {
+      ATInitManger.setLogEnabled(logEnabled: true);
+    }
+
+    if (config.channel != null) {
+      ATInitManger.setChannelStr(channelStr: config.channel!);
+    }
+
+    if (config.subChannel != null) {
+      ATInitManger.setSubChannelStr(subchannelStr: config.subChannel!);
+    }
+
+    if (config.customData != null) {
+      ATInitManger.setCustomDataMap(customDataMap: Map<String, Object>.from(config.customData!));
+    }
+  }
+
+  /// Set up GDPR listener (like original InitManager.initListen)
+  void setupGDPRListener({required VoidCallback onConsentDismiss}) {
+    _gdprSubscription?.cancel();
+    _gdprSubscription = ATListenerManager.initEventHandler.listen((value) {
+      debugPrint('GDPR Event: consentDismiss=${value.consentDismiss}');
+      if (value.consentDismiss != null) {
+        onConsentDismiss();
+      }
+    });
+  }
+
+  /// Initialize SDK only (like original initTopon)
+  Future<void> initSDK() async {
+    if (_initialized) return;
+    if (_config == null) throw Exception('Call configureSDK first');
+
+    final platformConfig = _config!.current;
+    await ATInitManger.initAnyThinkSDK(
+      appidStr: platformConfig.appId,
+      appidkeyStr: platformConfig.appKey,
+    );
+    _initialized = true;
+  }
+
+  /// Set preset placement config path (like original)
+  Future<void> setPresetPlacementConfigPath() async {
+    if (_config?.presetPlacementConfigPath != null) {
+      await ATInitManger.setPresetPlacementConfigPath(
+        pathStr: _config!.presetPlacementConfigPath!,
+      );
+    }
+  }
+
+  // ============ END NEW METHODS ============
+
   @override
   Future<void> showGDPRConsentDialog() async {
-    await ATInitManger.showGDPRConsentDialog();
+    ATInitManger.showGDPRConsentDialog();
   }
 
   @override

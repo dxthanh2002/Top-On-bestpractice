@@ -16,69 +16,60 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  bool _initialized = false;
-
   @override
   void initState() {
     super.initState();
-    _initAds();
+    // Like original flow: set up listeners + SDK config (non-blocking)
+    _setListen();
+    _setSDK();
   }
 
-  Future<void> _initAds() async {
-    try {
-      final screenWidth = TopSize().getWidth();
-      final screenHeight = TopSize().getHeight();
+  /// Set up SDK event listeners (like original InitManager.initListen)
+  void _setListen() {
+    TopOnAdsService.instance.setupGDPRListener(
+      onConsentDismiss: () {
+        // After GDPR consent, init SDK and preload
+        _initTopon();
+      },
+    );
+  }
 
-      // Use GDPR flow - SDK will init after consent dialog is dismissed
-      // This follows the original flow: showGDPRConsentDialog -> consentDismiss -> initTopon -> preload
-      await TopOnAdsService.instance.initializeWithGDPR(
-        config: appAdsConfig,
-        enableDebug: true,
-        screenWidth: screenWidth,
-        screenHeight: screenHeight,
-        preloadAds: true,
-      );
+  /// SDK settings + show GDPR dialog (like original _setSDK)
+  void _setSDK() {
+    final screenWidth = TopSize().getWidth();
+    final screenHeight = TopSize().getHeight();
+
+    TopOnAdsService.instance.configureSDK(
+      config: appAdsConfig,
+      enableDebug: true,
+      screenWidth: screenWidth,
+      screenHeight: screenHeight,
+    );
+
+    // Show GDPR dialog - SDK will init when consent is received
+    TopOnAdsService.instance.showGDPRConsentDialog();
+  }
+
+  /// Initialize SDK after GDPR consent (like original initTopon)
+  Future<void> _initTopon() async {
+    try {
+      await TopOnAdsService.instance.initSDK();
+      // Set preset placement config path
+      await TopOnAdsService.instance.setPresetPlacementConfigPath();
+      // Preload all ads
+      TopOnAdsService.instance.preloadAllAds();
     } catch (e, stack) {
-      debugPrint('_initAds ERROR: $e\n$stack');
-    } finally {
-      setState(() {
-        _initialized = true;
-      });
+      debugPrint('_initTopon ERROR: $e\n$stack');
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Render UI immediately (like original - no waiting for init)
     return MaterialApp(
       title: 'TopOn Flutter Demo v2',
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: _initialized 
-          ? const TopOnDemoPage() 
-          : const _LoadingScreen(),
-    );
-  }
-}
-
-class _LoadingScreen extends StatelessWidget {
-  const _LoadingScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: Color.fromRGBO(60, 104, 243, 1),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(color: Colors.white),
-            SizedBox(height: 20),
-            Text(
-              'Initializing Ads...',
-              style: TextStyle(color: Colors.white, fontSize: 16),
-            ),
-          ],
-        ),
-      ),
+      home: const TopOnDemoPage(),
     );
   }
 }
